@@ -5,7 +5,7 @@ Chrome на каждый день, но обычные сайты (YouTube, GitH
 
 [English](README.md)
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Status](https://img.shields.io/badge/status-planned-lightgrey)](#) [![Built with Claude Code](https://img.shields.io/badge/Built_with-Claude_Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+[![Status](https://img.shields.io/badge/status-planned-lightgrey)](#) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Built with Claude Code](https://img.shields.io/badge/Built_with-Claude_Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 
 Код, тесты и документация этого проекта написаны Claude (Anthropic) в Claude Code. Идеи, проверка и решения - Алексей.
 
