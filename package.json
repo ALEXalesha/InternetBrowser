@@ -1,0 +1,31 @@
+{
+  "name": "internet-browser",
+  "productName": "InternetBrowser",
+  "version": "0.1.0",
+  "description": "InternetBrowser: a good-looking Electron browser without ads and tracking - tabs, address bar with search, bookmarks, history, downloads, Chrome import; everything stays local",
+  "author": "ALEXalesha",
+  "license": "MIT",
+  "private": true,
+  "main": "src/main/main.js",
+  "homepage": "https://github.com/ALEXalesha/InternetBrowser",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test --test-concurrency=1 \"tests/unit/*.test.js\"",
+    "cover": "c8 --check-coverage node --test --test-concurrency=1 \"tests/unit/*.test.js\"",
+    "cover:core": "c8 --config .c8rc.core.json --check-coverage node --test --test-concurrency=1 \"tests/unit/*.test.js\"",
+    "test:app": "playwright test --config=playwright.app.config.js --workers=1",
+    "mutate": "node tools/mutate.js",
+    "lists": "node tools/fetch-lists.js",
+    "screens": "node tools/screenshots.js",
+    "icon": "node tools/make-icon.js",
+    "dist": "electron-builder --win nsis portable --x64"
+  },
+  "dependencies": {
+    "@ghostery/adblocker": "2.20.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "c8": "12.0.0",
+    "electron": "44.10.2"
+  }
+}

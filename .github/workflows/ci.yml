@@ -1,0 +1,34 @@
+# Проверки на GitHub: законы ядра с порогами покрытия ветвей (c8), затем законы окна
+# в настоящем Electron под xvfb (окно невидимое, интернет в тестах не нужен).
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  laws:
+    name: Laws
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - name: Dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          node node_modules/electron/install.js
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+      - name: Core laws, branch coverage >= 90 % (src/core)
+        run: npm run cover:core
+      - name: All windowless code, branch coverage >= 80 %
+        run: npm run cover
+      - name: Mutants are in place
+        run: node tools/mutate.js --check
+      - name: Window laws (Playwright + Electron, xvfb)
+        run: xvfb-run -a npm run test:app
