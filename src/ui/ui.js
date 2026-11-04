@@ -163,7 +163,9 @@
   window.ibui.on('ui:settings', (set) => { applySettings(set); render(); });
   window.ibui.on('ui:focusAddress', () => { const a = $('address'); a.focus(); a.select(); });
   window.ibui.on('ui:popupRequest', (kind) => {
-    if (kind === 'bookmark' && state && state.nav.canBookmark) call('popup', 'bookmark', rect($('star')));
+    // Ctrl+D сразу после загрузки: своё состояние полосы может ещё не дойти, а главный процесс
+    // сам проверяет, можно ли добавить страницу в закладки. Звезда скрыта - окно у строки адреса.
+    if (kind === 'bookmark') call('popup', 'bookmark', rect($('star').hidden ? $('omni') : $('star')));
   });
   window.ibui.on('ui:suggestClosed', () => { suggest = []; selected = 0; });
 
