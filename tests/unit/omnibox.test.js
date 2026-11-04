@@ -218,3 +218,15 @@ test('закон: закладка выше такой же записи без 
   assert.equal(out.length, 2);
   assert.equal(out[0].url, 'https://ex.com/');
 });
+
+test('закон: адрес, показанный в строке, открывается ровно тем же адресом; в нём нет символов смены направления', () => {
+  const PIECES = ['%25', '%20', '%2F', '%3F', '%23', '%D0%BA%D0%BE%D1%82', '%E2%80%AE', '%E2%80%8F', '%E2%81%A6', '%C2%A0', '%00', '%7F', 'a', '-', '%E0%A4%A', '%41', '%2525', '+', '%F0%9F%98%80'];
+  forAll('display-roundtrip', (r) => `https://${genHost(r)}/${Array.from({ length: r.int(0, 6) }, () => r.pick(PIECES)).join('')}${r.bool(0.3) ? '?q=' + r.pick(PIECES) : ''}`, (raw) => {
+    const url = new URL(raw).href;
+    const shown = forDisplay(url);
+    assert.doesNotMatch(shown, /[‎‏‪-‮⁦-⁩\u0000-\u001f\u007f]/u);
+    const res = parseInput(shown);
+    assert.equal(res.kind, 'url', shown);
+    assert.equal(res.url, url, shown);
+  }, 1500);
+});

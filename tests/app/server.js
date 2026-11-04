@@ -49,7 +49,7 @@ main{max-width:720px;margin:0 auto;padding:28px 32px}h1{font:700 34px/1.2 system
 <p>Главное правило - текст должен читаться в любой теме. Поэтому у каждой темы проверяется контраст: не меньше 4,5 к 1 для обычного текста.</p></main></body></html>`;
 
 const TWO = '<!doctype html><title>Second page</title><h1>Two</h1><a id="back" href="/page.html">back</a>';
-const OTHER = '<!doctype html><title>Other site</title><h1 id="h">Other</h1><img src="http://tracker.test/pixel.gif">';
+const OTHER = '<!doctype html><title>Other site</title><link rel="icon" href="http://tracker.test/icon.png?uid=42"><h1 id="h">Other</h1><img src="http://tracker.test/pixel.gif">';
 
 function start() {
   const hits = [];
@@ -69,6 +69,7 @@ function start() {
     if (host === 'site.test') {
       if (u.pathname === '/' || u.pathname === '/page.html') return send('text/html; charset=utf-8', PAGE);
       if (u.pathname === '/two.html') return send('text/html; charset=utf-8', TWO);
+      if (u.pathname === '/redir') { res.writeHead(302, { location: u.searchParams.get('to') || 'ib://settings/' }); res.end(); return undefined; }
       if (u.pathname === '/favicon.png' || u.pathname === '/ok.png') return send('image/png', PNG);
       if (u.pathname === '/file.bin') return send('application/octet-stream', FILE, { 'content-disposition': 'attachment; filename="report.bin"', 'content-length': FILE.length });
       if (u.pathname === '/slow.bin') {

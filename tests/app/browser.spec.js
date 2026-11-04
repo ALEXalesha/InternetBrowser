@@ -73,8 +73,11 @@ test('блокировка: реклама и трекер срезаны, сч�
     expect((await state(app)).nav.siteOn).toBe(false);
     // на другом сайте блокировка работает
     await go(ui, 'other.test');
-    await tabPage(app, /other\.test/);
+    const other = await tabPage(app, /other\.test/);
     await expect.poll(async () => (await state(app)).nav.blocked).toBe(1);
+    // значок-трекер (<link rel=icon> на чужой адрес из списка) браузер сам не запрашивает
+    await other.waitForTimeout(800);
+    expect(server.hits.filter((u) => u.startsWith('http://tracker.test/icon.png'))).toEqual([]);
     // включить обратно со страницы настроек
     await command(app, 'settings');
     const set = await tabPage(app, /^ib:\/\/settings\//);
@@ -290,6 +293,31 @@ test('поиск на странице и масштаб', async () => {
     await expect(ui.locator('#zoom')).toHaveText('110 %');
     await command(app, 'zoomReset');
     await expect(ui.locator('#zoom')).toBeHidden();
+  } finally {
+    await app.close();
+  }
+});
+
+test('закон: сайт не попадает на страницы браузера ни редиректом, ни ссылкой; страница с диска не читает чужие файлы', async () => {
+  const { app, ui } = await launch(server);
+  try {
+    await go(ui, 'site.test/page.html');
+    await tabPage(app, /site\.test\/page\.html/);
+    for (const to of ['ib://settings/', 'ib://newtab/?error=x&url=http://evil.test/']) {
+      await go(ui, `site.test/redir?to=${encodeURIComponent(to)}`);
+      await ui.waitForTimeout(800);
+      const st = await state(app);
+      expect(st.nav.url.startsWith('ib:'), `редирект на ${to} -> ${st.nav.url}`).toBe(false);
+    }
+    const dir = tmp('file');
+    fs.writeFileSync(path.join(dir, 'secret.txt'), 'SECRET');
+    fs.writeFileSync(path.join(dir, 'leak.html'), `<!doctype html><title>start</title><script>
+      fetch('secret.txt').then((r) => r.text()).then((t) => { document.title = 'READ:' + t; }, () => { document.title = 'BLOCKED'; });
+    </script>`);
+    await go(ui, 'file://' + path.join(dir, 'leak.html'));
+    const fileTitle = async () => ((await state(app)).tabs.find((t) => t.url.startsWith('file:')) || {}).title;
+    await expect.poll(fileTitle, { timeout: 10000 }).toMatch(/^(BLOCKED|READ:)/);
+    expect(await fileTitle()).toBe('BLOCKED');
   } finally {
     await app.close();
   }

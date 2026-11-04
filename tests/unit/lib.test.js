@@ -169,3 +169,122 @@ test('подсказки из хранилища: первая строка - ч
   assert.ok(!b.slice(1).some((x) => x.url === 'https://github.com/'));
   s.close();
 });
+
+const { readIcon, iconCache } = src('lib/favicon');
+
+function fakeResponse({ status = 200, type = 'image/png', length, chunks = [Buffer.from('PNG')], hang = false }) {
+  const headers = new Map([['content-type', type]]);
+  if (length !== undefined) headers.set('content-length', String(length));
+  let read = 0;
+  return {
+    ok: status >= 200 && status < 300,
+    headers: { get: (k) => headers.get(k) ?? null },
+    body: (async function* gen() {
+      for (const c of chunks) { read += c.length; yield c; }
+      if (hang) await new Promise(() => {});
+    })(),
+    read: () => read,
+  };
+}
+
+test('закон: значок читается не больше предела, со сроком и только картинкой; куки не отправляются', async () => {
+  const r = require(path.join(ROOT, 'tests', 'unit', 'law.js')).rng(11);
+  for (let i = 0; i < 200; i++) {
+    const size = r.int(0, 3000);
+    const n = r.int(1, 5);
+    const chunks = Array.from({ length: n }, () => Buffer.alloc(Math.ceil(size / n), 7));
+    const total = chunks.reduce((a, c) => a + c.length, 0);
+    const type = r.pick(['image/png', 'image/x-icon; charset=x', 'text/html', 'application/json']);
+    const lie = r.bool(0.3);
+    let opts = null;
+    const res = fakeResponse({ type, chunks, length: lie ? 10 : r.bool() ? total : undefined });
+    const got = await readIcon(async (_u, o) => { opts = o; return res; }, 'https://a.com/favicon.ico', { max: 1000 });
+    assert.equal(opts.credentials, 'omit');
+    const ok = /^image\//.test(type) && total <= 1000;
+    assert.equal(got !== null, ok, `${type} ${total}`);
+    if (ok) assert.equal(Buffer.from(got.split(',')[1], 'base64').length, total);
+    assert.ok(res.read() <= 1000 + Math.ceil(size / n), 'не читает дальше предела');
+  }
+  assert.equal(await readIcon(async () => fakeResponse({ chunks: [Buffer.from('x')], hang: true }), 'https://a.com/i.png', { timeout: 50 }), null);
+  assert.equal(await readIcon(async () => fakeResponse({ status: 404 }), 'https://a.com/i.png'), null);
+  assert.equal(await readIcon(async () => null, 'https://a.com/i.png'), null);
+  assert.equal(await readIcon(async () => { throw new Error('сеть'); }, 'https://a.com/i.png'), null);
+  assert.equal(await readIcon(async () => fakeResponse({ length: 5e6 }), 'https://a.com/i.png'), null);
+  assert.equal(await readIcon(null, 'ftp://a.com/i.png'), null);
+  assert.equal(await readIcon(null, 'data:image/png;base64,AA'), 'data:image/png;base64,AA');
+  assert.equal(await readIcon(null, 'data:image/png;base64,' + 'A'.repeat(200000)), null);
+});
+
+test('закон: кэш значков не растёт больше предела и вытесняет самый давний', () => {
+  const c = iconCache(3);
+  for (const k of ['a', 'b', 'c']) c.set(k, k);
+  assert.equal(c.get('a'), 'a');
+  c.set('d', 'd');
+  assert.equal(c.get('b'), undefined);
+  assert.equal(c.get('a'), 'a');
+  for (let i = 0; i < 1000; i++) c.set(`k${i}`, i);
+  assert.equal(c.size(), 3);
+  c.set('k999', 'x');
+  assert.equal(c.get('k999'), 'x');
+});
+
+test('закон: одинаковые одновременные запросы разрешения - один вопрос; закрытый без ответа вопрос не запоминается; MIDI не даёт sysex', async () => {
+  const r = require(path.join(ROOT, 'tests', 'unit', 'law.js')).rng(23);
+  for (let round = 0; round < 50; round++) {
+    const asked = [];
+    let answer = null;
+    const p = createPermissions({ ask: (site, perm) => { asked.push(`${site} ${perm}`); return new Promise((res) => setTimeout(() => res(answer), r.int(0, 3))); } });
+    const first = r.pick([true, false, null]);
+    answer = first;
+    const n = r.int(2, 6);
+    const results = await Promise.all(Array.from({ length: n }, () => p.request('https://a.com/', 'media')));
+    assert.equal(asked.length, 1, 'один вопрос на одновременные запросы');
+    assert.ok(results.every((x) => x === (first === true)));
+    answer = true;
+    const again = await p.request('https://a.com/', 'media');
+    if (first === null) {
+      assert.equal(asked.length, 2, 'закрытый без ответа вопрос задан снова');
+      assert.equal(again, true);
+    } else {
+      assert.equal(asked.length, 1, 'ответ запомнен');
+      assert.equal(again, first);
+    }
+  }
+  const p = createPermissions({ ask: async () => true });
+  assert.equal(await p.request('https://a.com/', 'midi'), true);
+  assert.equal(p.check('https://a.com/', 'midiSysex'), false, 'разрешение MIDI не даёт sysex');
+});
+
+test('закон: на системе без различия регистра одновременные Report.pdf и report.pdf ложатся под разными именами', () => {
+  const r = require(path.join(ROOT, 'tests', 'unit', 'law.js')).rng(31);
+  for (let round = 0; round < 50; round++) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ib-dl-'));
+    const store = openStore();
+    const m = createDownloads({ store, dir: () => dir, caseless: true });
+    const paths = Array.from({ length: r.int(2, 8) }, () => { const it = fakeItem(r.pick(['Report.pdf', 'report.pdf', 'REPORT.PDF', 'other.zip']), 10); m.track(it); return it.savePath.toLowerCase(); });
+    assert.equal(new Set(paths).size, paths.length);
+    store.close();
+  }
+});
+
+test('закон: «очистить список» убирает ровно те загрузки, что сейчас не идут (и на паузе остаётся)', () => {
+  const r = require(path.join(ROOT, 'tests', 'unit', 'law.js')).rng(41);
+  for (let round = 0; round < 60; round++) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ib-dl-'));
+    const store = openStore();
+    store.addDownload({ url: 'https://x/', filename: 'old', path: path.join(dir, 'old'), state: 'progressing' });
+    const m = createDownloads({ store, dir: () => dir });
+    const live = [];
+    for (let i = r.int(1, 8); i > 0; i--) {
+      const it = fakeItem(`f${i}.bin`, 10);
+      const id = m.track(it);
+      const fate = r.pick(['done', 'pause', 'run', 'cancel']);
+      if (fate === 'done') { fs.writeFileSync(it.savePath, 'x'); it.finish(); }
+      else if (fate === 'cancel') it.cancel();
+      else { if (fate === 'pause') m.act(id, 'pause'); live.push(id); }
+    }
+    m.clear();
+    assert.deepEqual(store.listDownloads().map((d) => d.id).sort(), live.sort());
+    store.close();
+  }
+});

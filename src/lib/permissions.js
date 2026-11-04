@@ -9,19 +9,29 @@ const ASK = new Set(['media', 'notifications', 'geolocation', 'midi', 'midiSysex
 
 function createPermissions({ ask }) {
   const memory = new Map();
+  const pending = new Map();
   const key = (site, perm) => `${site} ${perm}`;
 
-  /** Решение для запроса: callback(true|false). ask(site, perm) -> Promise<boolean>. */
+  /**
+   * Решение для запроса. ask(site, perm) -> Promise<true | false | null>: null - вопрос закрыли
+   * без ответа (перекрыло другое окно, сменили вкладку); это отказ сейчас, но не запоминается.
+   * Одинаковые запросы, пришедшие, пока вопрос открыт, ждут тот же ответ.
+   */
   async function request(url, perm) {
     if (ALWAYS.has(perm)) return true;
     const site = siteOf(url);
     if (!site || !ASK.has(perm)) return false;
-    const k = key(site, perm === 'midiSysex' ? 'midi' : perm);
+    const k = key(site, perm);
     if (memory.has(k)) return memory.get(k);
-    let ok = false;
-    try { ok = (await ask(site, perm)) === true; } catch { ok = false; }
-    memory.set(k, ok);
-    return ok;
+    if (pending.has(k)) return pending.get(k);
+    const p = (async () => {
+      let ans = null;
+      try { ans = await ask(site, perm); } catch { ans = null; }
+      if (ans === true || ans === false) memory.set(k, ans);
+      return ans === true;
+    })();
+    pending.set(k, p);
+    try { return await p; } finally { pending.delete(k); }
   }
 
   /** Проверка без вопроса (permission check handler): только то, что уже разрешено. */

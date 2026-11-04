@@ -16,4 +16,12 @@ function isHistoryUrl(raw) {
   return u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'file:';
 }
 
-module.exports = { siteOf, isHistoryUrl };
+// Electron даёт страницам file:// больше, чем Chrome: fetch и XHR читают любой файл на диске.
+// Как в Chrome: страница с диска грузит картинки, стили, скрипты и рамки, но не читает файлы.
+const FILE_OK = new Set(['mainFrame', 'subFrame', 'image', 'stylesheet', 'script', 'font', 'media']);
+
+function blocksFileRead(url, type) {
+  return /^file:/i.test(String(url)) && !FILE_OK.has(type);
+}
+
+module.exports = { siteOf, isHistoryUrl, blocksFileRead };

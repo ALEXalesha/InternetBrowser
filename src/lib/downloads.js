@@ -7,14 +7,18 @@ const fs = require('fs');
 const path = require('path');
 const { targetPath } = require('../core/downloads');
 
-function createDownloads({ store, dir, exists = (p) => fs.existsSync(p), onChange = () => {}, now = () => Date.now() }) {
+// На Windows и macOS файловая система не различает регистр: Report.pdf и report.pdf - один файл.
+const CASELESS = process.platform === 'win32' || process.platform === 'darwin';
+
+function createDownloads({ store, dir, exists = (p) => fs.existsSync(p), onChange = () => {}, now = () => Date.now(), caseless = CASELESS }) {
   const live = new Map();
   const reserved = new Set();
+  const norm = (p) => (caseless ? p.toLowerCase() : p);
 
   /** Новая загрузка: имя, путь, запись в список. Возвращает id записи. */
   function track(item) {
-    const file = targetPath(dir(), item.getFilename(), (p) => reserved.has(p) || exists(p));
-    reserved.add(file);
+    const file = targetPath(dir(), item.getFilename(), (p) => reserved.has(norm(p)) || exists(p));
+    reserved.add(norm(file));
     item.setSavePath(file);
     const id = store.addDownload({ url: item.getURL(), filename: path.basename(file), path: file, total: item.getTotalBytes(), started: now(), mime: item.getMimeType() });
     live.set(id, item);
@@ -29,7 +33,7 @@ function createDownloads({ store, dir, exists = (p) => fs.existsSync(p), onChang
     item.once('done', (_e, state) => {
       store.updateDownload(id, { state, received: item.getReceivedBytes(), total: item.getTotalBytes(), finished: now() });
       live.delete(id);
-      reserved.delete(file);
+      reserved.delete(norm(file));
       onChange(id);
     });
     onChange(id);
@@ -71,7 +75,12 @@ function createDownloads({ store, dir, exists = (p) => fs.existsSync(p), onChang
     return live.size;
   }
 
-  return { track, act, list, active };
+  /** Очистить список: остаются только загрузки, которые идут сейчас (и на паузе). */
+  function clear() {
+    store.clearDownloads([...live.keys()]);
+  }
+
+  return { track, act, list, active, clear };
 }
 
 module.exports = { createDownloads };

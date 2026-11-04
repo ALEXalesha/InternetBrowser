@@ -58,6 +58,7 @@ test('закон: режется ровно то, что велит список
     let total = 0;
     for (const q of w.reqs) {
       const d = b.decide(q);
+      if (q.type === 'mainFrame') b.committed(q.tabId, q.url);
       const want = expected(w, q, lastMain);
       assert.equal(d.cancel, want, `${q.url} со страницы ${lastMain.get(q.tabId) || q.topUrl} (${q.type})`);
       if (q.type === 'mainFrame') { counts.set(q.tabId, 0); lastMain.set(q.tabId, q.url); }
@@ -101,6 +102,7 @@ test('косметика: общие и сайтовые правила, вык�
 test('счётчик: последние адреса, новая страница и закрытая вкладка', () => {
   const b = createBlocker({ engine: buildEngine(['||ads.com^']) });
   b.decide({ url: 'https://site.com/', type: 'mainFrame', tabId: 7 });
+  b.committed(7, 'https://site.com/');
   for (let i = 0; i < 60; i++) b.decide({ url: `https://ads.com/${i}`, type: 'image', tabId: 7, topUrl: 'https://site.com/' });
   assert.equal(b.stats(7).count, 60);
   assert.equal(b.stats(7).recent.length, 50);
@@ -211,4 +213,29 @@ test('закон: подресурс новой страницы судится 
   assert.equal(b.stats(5).count, 1);
   b.committed(5, 'ib://newtab/');
   assert.equal(b.decide({ url: 'https://ads.com/x', type: 'image', tabId: 5, topUrl: 'https://a.com/' }).cancel, false);
+});
+
+test('закон: несостоявшийся переход (загрузка, ошибка) не меняет ни сайт вкладки, ни её счётчик', () => {
+  forAll('blocker-aborted', (r) => Array.from({ length: r.int(1, 25) }, () => ({ op: r.pick(['req', 'req', 'req', 'nav', 'commit', 'abort']), site: r.pick(['on.com', 'off.com']), ref: r.pick(['old', 'new', 'none']) })), (ops) => {
+    const b = createBlocker({ engine: buildEngine(['||ads.com^']), isSiteOn: (s) => s !== 'off.com' });
+    b.decide({ url: 'https://off.com/', type: 'mainFrame', tabId: 1 });
+    b.committed(1, 'https://off.com/');
+    let top = 'https://off.com/';
+    let pending = null;
+    let count = 0;
+    let pendingCount = 0;
+    for (const o of ops) {
+      if (o.op === 'nav') { pending = `https://${o.site}/`; pendingCount = 0; b.decide({ url: pending, type: 'mainFrame', tabId: 1 }); }
+      else if (o.op === 'commit') { if (pending) { top = pending; count = pendingCount; pending = null; } b.committed(1, top); }
+      else if (o.op === 'abort') { pending = null; b.aborted(1); }
+      else {
+        const referrer = o.ref === 'old' ? top : o.ref === 'new' && pending ? pending : '';
+        const page = pending && !(referrer && new URL(referrer).hostname === new URL(top).hostname && new URL(top).hostname !== new URL(pending).hostname) ? pending : top;
+        const d = b.decide({ url: 'https://ads.com/x.js', type: 'script', tabId: 1, topUrl: 'https://stale.example/', referrer });
+        assert.equal(d.cancel, page === 'https://on.com/', `страница ${page}`);
+        if (d.cancel) { if (page === pending) pendingCount++; else count++; }
+      }
+      assert.equal(b.stats(1).count, count);
+    }
+  }, 400);
 });

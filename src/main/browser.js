@@ -17,6 +17,7 @@ const { searchUrl } = require('../core/search');
 const { isDark } = require('../core/themes');
 const i18n = require('../core/i18n');
 const { suggestions } = require('../lib/omnisource');
+const { readIcon, iconCache } = require('../lib/favicon');
 
 const ROOT = path.join(__dirname, '..', '..');
 const UI_PRELOAD = path.join(__dirname, 'ui-preload.js');
@@ -54,7 +55,7 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
   let attached = null;
   const permQueue = [];
   let permCurrent = null;
-  const faviconCache = new Map();
+  const faviconCache = iconCache(300);
 
   const t = (key, vars) => i18n.t(lang(), key, vars);
   const theme = () => settings().theme;
@@ -188,6 +189,10 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
       // Сайт не может сам перейти на страницу браузера ib:// - только пользователь.
       if (/^ib:/i.test(e.url) && !/^ib:/i.test(wc.getURL())) e.preventDefault();
     });
+    // Серверный редирект на ib:// не бывает законным никогда (даже если переход начал пользователь).
+    wc.on('will-redirect', (e) => {
+      if (/^ib:/i.test(e.url)) e.preventDefault();
+    });
     wc.on('will-frame-navigate', (e) => {
       if (!e.isMainFrame && /^ib:/i.test(e.url)) e.preventDefault();
     });
@@ -217,6 +222,7 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
     });
     wc.on('page-favicon-updated', (_e, icons) => fetchFavicon(tab, icons && icons[0]));
     wc.on('did-fail-load', (_e, code, desc, url, isMain) => {
+      if (isMain) blocker.aborted(tab.id);
       if (!isMain || code === -3 || /^ib:/i.test(url)) return;
       wc.loadURL(`ib://newtab/?error=${encodeURIComponent(desc)}&url=${encodeURIComponent(url)}`).catch(() => {});
     });
@@ -245,21 +251,15 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
   async function fetchFavicon(tab, url) {
     const site = siteOf(tab.state.url);
     if (!site || !url || !/^(https?|data):/i.test(url)) return;
-    if (faviconCache.has(url)) { tab.state.favicon = faviconCache.get(url); push(); return; }
-    try {
-      let data = url;
-      if (!/^data:image\//i.test(url)) {
-        const res = await browse.fetch(url);
-        if (!res.ok) return;
-        const type = (res.headers.get('content-type') || 'image/x-icon').split(';')[0].trim();
-        const buf = Buffer.from(await res.arrayBuffer());
-        if (!/^image\//.test(type) || buf.length > 100000) return;
-        data = `data:${type};base64,${buf.toString('base64')}`;
-      }
-      faviconCache.set(url, data);
-      if (siteOf(tab.state.url) === site) { tab.state.favicon = data; push(); }
-      if (store.setFavicon(site, data)) barCache = null;
-    } catch { /* значок не обязателен */ }
+    const cached = faviconCache.get(url);
+    if (cached !== undefined) { tab.state.favicon = cached; push(); return; }
+    // Трекер под видом значка: адрес, который блокировщик срезал бы на этой странице, не запрашивается.
+    if (blocker.judge(url, 'image', tab.state.url).cancel) return;
+    const data = await readIcon((u, o) => browse.fetch(u, o), url);
+    if (!data) return;
+    faviconCache.set(url, data);
+    if (siteOf(tab.state.url) === site) { tab.state.favicon = data; push(); }
+    if (store.setFavicon(site, data)) barCache = null;
   }
 
   function zoom(tab, delta) {
@@ -274,7 +274,8 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
   function contextMenu(tab, p) {
     const wc = tab.view.webContents;
     const items = [];
-    if (p.linkURL && /^(https?|file):/i.test(p.linkURL)) {
+    // Ссылку на файл с диска можно открыть только со страницы с диска, не с сайта.
+    if (p.linkURL && (/^https?:/i.test(p.linkURL) || (/^file:/i.test(p.linkURL) && /^file:/i.test(wc.getURL())))) {
       items.push({ label: t('ctxOpenLinkTab'), click: () => openTab(p.linkURL, { after: tab.id, activate: false }) });
       items.push({ label: t('ctxCopyLink'), click: () => clipboard.writeText(p.linkURL) });
       items.push({ type: 'separator' });
@@ -342,6 +343,9 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
 
   async function showOverlay(kind, data, rect) {
     await ensureOverlay();
+    // Другое окно поверх вопроса о разрешении: вопрос закрыт без ответа (не запоминается),
+    // очередь продолжится, когда слой закроется.
+    if (kind !== 'perm' && permCurrent) { permCurrent.resolve(null); permCurrent = null; }
     overlayKind = kind;
     overlayRect = rect || null;
     win.contentView.addChildView(overlay);
@@ -356,7 +360,8 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
     overlayKind = null;
     win.contentView.removeChildView(overlay);
     overlay.webContents.send('ov:hide');
-    if (was === 'perm' && permCurrent) { permCurrent.resolve(false); permCurrent = null; nextPerm(); }
+    if (was === 'perm' && permCurrent) { permCurrent.resolve(null); permCurrent = null; }
+    if (!permCurrent && permQueue.length) setImmediate(nextPerm);
     if (was === 'suggest') sendUi('ui:suggestClosed');
   }
 

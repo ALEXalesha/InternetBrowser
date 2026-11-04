@@ -27,7 +27,7 @@
     "@playwright/test": "1.64.1",
     "c8": "12.0.0",
     "electron": "44.10.2",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "26.15.3"
   },
   "build": {
     "appId": "com.alexalesha.internetbrowser",
@@ -88,6 +88,15 @@
     },
     "portable": {
       "artifactName": "InternetBrowser-${version}-Portable.${ext}"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false
     }
   }
 }

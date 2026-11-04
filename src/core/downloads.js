@@ -15,6 +15,8 @@ const MAX_NAME = 180;
 function safeName(raw) {
   let name = String(raw == null ? '' : raw).toWellFormed();
   name = name.split(/[\\/]/).pop();
+  // Символы смены направления и невидимые: «invoice\u202efdp.exe» выглядел бы как «invoiceexe.pdf».
+  name = name.replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu, '');
   name = name.replace(/[\u0000-\u001f\u007f<>:"|?*]/g, '_').replace(/^[\s.]+|[\s.]+$/g, '');
   if (!name) name = 'download';
   const dot = name.lastIndexOf('.');

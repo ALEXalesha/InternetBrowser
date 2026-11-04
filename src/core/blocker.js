@@ -3,9 +3,11 @@
 //  - документ вкладки (сама страница) не режется никогда: обычные сайты всегда открываются;
 //  - на выключенном сайте (выключатель «на этом сайте») не режется ничего, и косметики нет;
 //  - режутся только http(s) и ws(s) запросы, у которых известна страница вкладки;
-//  - страница вкладки - адрес её последнего документа (запрос mainFrame или committed): первые
-//    подресурсы новой страницы приходят раньше, чем Electron обновит адрес вкладки, и по
-//    старому адресу их судили бы по чужому сайту.
+//  - страница вкладки ведётся здесь, а не по адресу вкладки в Electron: запрос документа
+//    (mainFrame) заводит «ожидаемую» страницу, committed() делает её текущей, aborted()
+//    отбрасывает (загрузка файла, ошибка). Первые подресурсы новой страницы приходят раньше,
+//    чем Electron обновит адрес вкладки, - они судятся по ожидаемой; подресурс, чей referrer
+//    с сайта текущей страницы, - по текущей (переход ещё не случился или не случится).
 'use strict';
 
 const { Request } = require('@ghostery/adblocker');
@@ -27,32 +29,70 @@ function createBlocker({ engine, isSiteOn = () => true, enabled = () => true, co
 
   function tab(tabId) {
     let t = tabs.get(tabId);
-    if (!t) { t = { count: 0, recent: [], top: null }; tabs.set(tabId, t); }
+    if (!t) { t = { count: 0, recent: [], top: null, pending: null }; tabs.set(tabId, t); }
     return t;
   }
 
-  /** Начата новая страница во вкладке: счётчик с нуля. */
+  /** Вкладка сразу на странице url, счётчик с нуля. */
   function resetTab(tabId, url) {
-    tabs.set(tabId, { count: 0, recent: [], top: url });
+    tabs.set(tabId, { count: 0, recent: [], top: url, pending: null });
   }
 
-  /** Вкладка показала документ (в том числе без запроса - из кэша «назад»): он и есть её страница. */
+  /**
+   * Вкладка показала документ url: ожидаемая страница (со своим счётом) становится текущей.
+   * Без ожидаемой (страница из кэша «назад») - новая текущая страница со счётом с нуля.
+   */
   function committed(tabId, url) {
-    tab(tabId).top = url;
+    const t = tab(tabId);
+    if (t.pending) {
+      tabs.set(tabId, { count: t.pending.count, recent: t.pending.recent, top: url, pending: null });
+    } else if (t.top !== url) {
+      tabs.set(tabId, { count: 0, recent: [], top: url, pending: null });
+    }
+  }
+
+  /** Переход не состоялся (загрузка вместо страницы, ошибка): остаётся прежняя страница. */
+  function aborted(tabId) {
+    const t = tabs.get(tabId);
+    if (t) t.pending = null;
+  }
+
+  function hostOf(u) {
+    try { return new URL(u).hostname; } catch { return ''; }
+  }
+
+  /** Какой странице вкладки принадлежит подресурс: ожидаемой или текущей. */
+  function pageFor(t, referrer) {
+    if (!t.pending) return t;
+    const ref = hostOf(referrer);
+    if (ref && t.top && ref === hostOf(t.top) && ref !== hostOf(t.pending.top)) return t;
+    return t.pending;
   }
 
   /**
    * Решение по запросу { url, type, tabId, topUrl }. type - resourceType Electron
    * (mainFrame, subFrame, script, image, xhr...). Возвращает { cancel, filter? }.
    */
-  function decide({ url, type, tabId, topUrl }) {
+  function decide({ url, type, tabId, topUrl, referrer }) {
     if (type === 'mainFrame') {
-      if (tabId != null) resetTab(tabId, url);
+      if (tabId != null) tab(tabId).pending = { count: 0, recent: [], top: url };
       return { cancel: false };
     }
+    const page = tabId != null ? pageFor(tab(tabId), referrer) : null;
+    const res = judge(url, type, page && page.top ? page.top : topUrl);
+    if (!res.cancel) return res;
+    if (page) {
+      page.count++;
+      page.recent.unshift(url);
+      if (page.recent.length > KEEP_RECENT) page.recent.length = KEEP_RECENT;
+    }
+    total++;
+    return res;
+  }
+
+  /** Решение без счёта и памяти вкладки: срезал бы блокировщик этот запрос со страницы topUrl. */
+  function judge(url, type, topUrl) {
     if (!eng || !enabled() || !WEB.test(String(url))) return { cancel: false };
-    const known = tabId != null && tabs.get(tabId);
-    if (known && known.top) topUrl = known.top;
     const site = siteOf(topUrl);
     if (!site || !isSiteOn(site)) return { cancel: false };
     let res;
@@ -62,13 +102,6 @@ function createBlocker({ engine, isSiteOn = () => true, enabled = () => true, co
       return { cancel: false };
     }
     if (!res.match) return { cancel: false };
-    if (tabId != null) {
-      const t = tab(tabId);
-      t.count++;
-      t.recent.unshift(url);
-      if (t.recent.length > KEEP_RECENT) t.recent.length = KEEP_RECENT;
-    }
-    total++;
     return { cancel: true, filter: res.filter ? res.filter.toString() : '' };
   }
 
@@ -100,7 +133,7 @@ function createBlocker({ engine, isSiteOn = () => true, enabled = () => true, co
   }
 
   return {
-    decide, resetTab, committed, stats, forgetTab, cosmeticsFor,
+    decide, judge, resetTab, committed, aborted, stats, forgetTab, cosmeticsFor,
     setEngine(e) { eng = e; },
     total: () => total,
   };

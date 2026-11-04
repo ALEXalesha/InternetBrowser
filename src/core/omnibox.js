@@ -106,10 +106,40 @@ function parseInput(raw, engine) {
   return { kind: 'url', url: u.href };
 }
 
-/** Текст для строки, когда она не в фокусе: у новой вкладки строка пустая. */
+// Раскрывается только видимое: буквы, цифры, знаки, эмодзи. Пробелы, управляющие символы и
+// символы смены направления текста (ими подделывают вид адреса) остаются закодированными.
+const VISIBLE = /^[\p{L}\p{M}\p{N}\p{P}\p{S}]+$/u;
+
+function utf8Length(lead) {
+  if (lead >= 0xf0 && lead <= 0xf4) return 4;
+  if (lead >= 0xe0) return 3;
+  if (lead >= 0xc2 && lead <= 0xdf) return 2;
+  return 0;
+}
+
+/**
+ * Текст для строки, когда она не в фокусе: у новой вкладки строка пустая, кириллица и эмодзи в
+ * пути читаются. ASCII-последовательности (%25, %20, %2F) не раскрываются никогда, поэтому
+ * набранный обратно текст открывает ровно тот же адрес.
+ */
 function forDisplay(url) {
   if (!url || pages.pageName(url) === 'newtab' || url === 'about:blank') return '';
-  try { return decodeURI(url); } catch { return url; }
+  return url.replace(/(?:%[0-9A-F]{2})+/g, (run) => {
+    const bytes = run.match(/%[0-9A-F]{2}/g);
+    let out = '';
+    for (let i = 0; i < bytes.length;) {
+      const n = utf8Length(parseInt(bytes[i].slice(1), 16));
+      const seq = bytes.slice(i, i + (n || 1)).join('');
+      let ch = null;
+      if (n && i + n <= bytes.length) {
+        try { ch = decodeURIComponent(seq); } catch { ch = null; }
+      }
+      if (ch === null) { out += bytes[i]; i += 1; continue; }
+      out += VISIBLE.test(ch) && encodeURIComponent(ch) === seq ? ch : seq;
+      i += n;
+    }
+    return out;
+  });
 }
 
 const DAY = 86400000;

@@ -10,7 +10,7 @@ const { src, forAll } = require('./law');
 const { openStore, ROOT_BAR, ROOT_OTHER } = src('core/store');
 const { normalizeSettings, DEFAULTS, resolveLang, MAX_LINKS } = src('core/settings');
 const { THEMES, isDark, normalizeTheme } = src('core/themes');
-const { siteOf, isHistoryUrl } = src('core/sites');
+const { siteOf, isHistoryUrl, blocksFileRead } = src('core/sites');
 
 const WORDS = ['кот', 'Кот', 'dog', 'news', 'git', 'Hub', 'ёж', 'проект', 'test', 'a'];
 
@@ -307,13 +307,16 @@ test('сайт по адресу и что идёт в историю', () => {
 test('загрузки и значки', () => {
   const s = openStore();
   const a = s.addDownload({ url: 'https://a.com/f.zip', filename: 'f.zip', path: '/d/f.zip', started: 1 });
-  const b = s.addDownload({ url: 'https://a.com/g.zip', filename: 'g.zip', path: '/d/g.zip', started: 2, mime: null });
+  let b = s.addDownload({ url: 'https://a.com/g.zip', filename: 'g.zip', path: '/d/g.zip', started: 2, mime: null });
   assert.deepEqual(s.listDownloads().map((d) => d.id), [b, a]);
   assert.equal(s.updateDownload(a, { state: 'completed', received: 10, total: 10, finished: 3 }).state, 'completed');
   assert.equal(s.updateDownload(999, {}), null);
   s.updateDownload(b, { received: 'x' });
-  s.clearDownloads();
+  s.clearDownloads([b, 'x']);
   assert.deepEqual(s.listDownloads().map((d) => d.id), [b]);
+  s.clearDownloads(null);
+  assert.deepEqual(s.listDownloads(), []);
+  b = s.addDownload({ url: 'https://a.com/g.zip', filename: 'g.zip', path: '/d/g.zip', started: 2 });
   s.removeDownload(b);
   assert.deepEqual(s.listDownloads(), []);
   assert.equal(s.setFavicon('a.com', 'data:image/png;base64,AA=='), true);
@@ -322,4 +325,12 @@ test('загрузки и значки', () => {
   assert.equal(s.getFavicon('a.com'), 'data:image/png;base64,AA==');
   assert.equal(s.getFavicon('b.com'), null);
   s.close();
+});
+
+test('закон: страница с диска не читает файлы (fetch, XHR и прочее), но грузит картинки, стили, скрипты и рамки', () => {
+  const types = ['mainFrame', 'subFrame', 'image', 'stylesheet', 'script', 'font', 'media', 'xhr', 'other', 'ping', 'webSocket', 'object', 'cspReport', undefined];
+  forAll('file-read', (r) => ({ url: r.pick(['file:///etc/passwd', 'FILE:///C:/a.txt', 'https://a.com/x', 'ib://ui/', 'data:,x']), type: r.pick(types) }), ({ url, type }) => {
+    const reads = !['mainFrame', 'subFrame', 'image', 'stylesheet', 'script', 'font', 'media'].includes(type);
+    assert.equal(blocksFileRead(url, type), /^file:/i.test(url) && reads);
+  });
 });

@@ -19,7 +19,7 @@ const { SOURCES, buildEngine } = require('../core/filters');
 const { cleanUserAgent } = require('../core/ua');
 const { resolveLang } = require('../core/settings');
 const { findProfiles, importProfile } = require('../core/chrome');
-const { siteOf } = require('../core/sites');
+const { siteOf, blocksFileRead } = require('../core/sites');
 const { ENGINES } = require('../core/search');
 const { THEMES } = require('../core/themes');
 const i18n = require('../core/i18n');
@@ -113,14 +113,20 @@ function setupBrowseSession(ses) {
 
 function wireBrowseSession(ses) {
   ses.webRequest.onBeforeRequest((details, cb) => {
+    if (blocksFileRead(details.url, details.resourceType)) { cb({ cancel: true }); return; }
     const tab = browser ? browser.tabForWebContents(details.webContentsId) : null;
     let topUrl = '';
     if (tab) topUrl = details.resourceType === 'mainFrame' ? details.url : tab.view.webContents.getURL();
-    const d = blocker.decide({ url: details.url, type: details.resourceType, tabId: tab ? tab.id : null, topUrl });
+    const d = blocker.decide({ url: details.url, type: details.resourceType, tabId: tab ? tab.id : null, topUrl, referrer: details.referrer });
     if (d.cancel && tab) browser.blockedChanged(tab.id);
     cb({ cancel: d.cancel });
   });
-  ses.on('will-download', (_e, item) => downloads.track(item));
+  ses.on('will-download', (_e, item, wc) => {
+    // переход стал загрузкой файла: вкладка остаётся на прежней странице
+    const tab = wc && browser ? browser.tabForWebContents(wc.id) : null;
+    if (tab) blocker.aborted(tab.id);
+    downloads.track(item);
+  });
   const perms = createPermissions({ ask: (site, perm) => browser.askPermission(site, perm) });
   ses.setPermissionRequestHandler((wc, perm, cb, details) => {
     perms.request((details && details.requestingUrl) || wc.getURL(), perm).then(cb, () => cb(false));
@@ -161,7 +167,7 @@ function pageApi() {
       if (action === 'show') { shell.showItemInFolder(d.path); return true; }
       return downloads.act(Number(id), String(action));
     },
-    downloadsClear: () => { S().clearDownloads(); browser.pagesEvent({ type: 'downloads' }); return true; },
+    downloadsClear: () => { downloads.clear(); browser.pagesEvent({ type: 'downloads' }); return true; },
     favicons: (sites) => Object.fromEntries((Array.isArray(sites) ? sites.slice(0, 300) : []).map((s) => [s, S().getFavicon(String(s))]).filter((e) => e[1])),
     lists: () => ({ ...listsState }),
     listsUpdate: () => refreshLists(true).then(() => ({ ...listsState })),
@@ -226,6 +232,13 @@ app.whenReady().then(() => {
   if (TEST) {
     globalThis.ibTest = { store, blocker, browser, downloads, refreshLists, listsState: () => listsState, settings };
   }
+});
+
+// Сайт, запросивший клиентский TLS-сертификат, не получает его молча (иначе Electron отдал
+// бы первый из хранилища системы - с именем и почтой владельца).
+app.on('select-client-certificate', (event, _wc, _url, _list, callback) => {
+  event.preventDefault();
+  callback();
 });
 
 app.on('second-instance', (_e, argv) => {

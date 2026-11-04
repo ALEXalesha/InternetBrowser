@@ -287,8 +287,12 @@ function openStore(file = ':memory:') {
   function removeDownload(id) {
     q('DELETE FROM downloads WHERE id = ?').run(id);
   }
-  function clearDownloads() {
-    q("DELETE FROM downloads WHERE state <> 'progressing'").run();
+  /** Убрать из списка всё, кроме загрузок keep (идущих сейчас, в том числе на паузе). */
+  function clearDownloads(keep = []) {
+    const ids = (keep || []).map(Number).filter(Number.isInteger);
+    // «id NOT IN (NULL)» в SQL не истинно ни для кого - без оставляемых удаляется всё
+    if (!ids.length) { q('DELETE FROM downloads').run(); return; }
+    q(`DELETE FROM downloads WHERE id NOT IN (${ids.map(() => '?').join(',')})`).run(...ids);
   }
 
   // ---------- сайты ----------

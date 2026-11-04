@@ -11,13 +11,14 @@ const { actionFor } = src('core/keys');
 const { cleanUserAgent } = src('core/ua');
 const { NEWTAB } = src('core/pages');
 
-const NAME_CHARS = 'abcXYZ019 ._-()<>:"/\\|?*\u0000\u001fабвёЁ😀\t';
+const NAME_CHARS = 'abcXYZ019 ._-()<>:"/\\|?*\u0000\u001fабвёЁ😀\t\u202e\u200f\u2066\u200b\ufeff';
 
 test('закон: имя загрузки безопасно - внутри папки, без запретных знаков и имён устройств, не длиннее предела', () => {
   forAll('download-name', (r) => r.pick([r.str(NAME_CHARS, 0, 40), r.pick(['CON', 'CON.tar.gz', 'aux.a.b.c', 'nul.txt', 'com1.zip', 'LPT9', '..', '.', '../../etc/passwd', 'a'.repeat(300) + '.zip', 'x.' + 'e'.repeat(30), '😀'.repeat(200) + '.txt']), null]), (raw) => {
     const n = dl.safeName(raw);
     assert.ok(n.length > 0);
     assert.doesNotMatch(n, /[\\/<>:"|?*\u0000-\u001f]/);
+    assert.doesNotMatch(n, /[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/u, 'без символов смены направления');
     assert.doesNotMatch(n, /^[\s.]|[\s.]$/);
     assert.doesNotMatch(n.split('.')[0], /^(con|prn|aux|nul|com\d|lpt\d)$/i);
     assert.ok([...n].length <= dl.MAX_NAME, `${[...n].length}`);
