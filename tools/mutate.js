@@ -110,6 +110,7 @@ const MUTANTS = [
   { id: 'app-file-read', file: 'src/main/main.js', from: '    if (blocksFileRead(details.url, details.resourceType)) { cb({ cancel: true }); return; }\n', to: '', app: 'ни редиректом', spec: 'browser.spec.js' },
   { id: 'app-favicon-tracker', file: 'src/main/browser.js', from: "    if (blocker.judge(url, 'image', tab.state.url).cancel) return;\n", to: '', app: 'блокировка:', spec: 'browser.spec.js' },
   { id: 'app-bookmark-moves', file: 'src/main/browser.js', from: 'if (b.parent && cur && Number(b.parent) !== cur.parent)', to: 'if (b.parent && cur)', app: 'переименование закладки', spec: 'browser.spec.js' },
+  { id: 'app-window-open-null', file: 'src/main/browser.js', from: "        action: 'allow',\n", to: "        action: 'deny',\n", app: 'window.open', spec: 'browser.spec.js' },
   { id: 'app-tab-leak', file: 'src/main/browser.js', from: '    try { tab.view.webContents.close(); } catch { /* уже закрыта */ }\n', to: '', app: '20 открытых и закрытых', spec: 'memory.spec.js' },
   { id: 'app-open-page-race', file: 'src/main/browser.js', from: '{ cur.state.url = url; model.update(cur.id, { url }); cur.view', to: '{ cur.view', app: 'все темы.*ru-RU', spec: 'look.spec.js' },
 ];

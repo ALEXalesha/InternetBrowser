@@ -95,22 +95,25 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
   // ---------- вкладки ----------
   const activeTab = () => tabs.get(model.active()) || null;
 
-  function createView(id, url) {
-    const view = new WebContentsView({
-      webPreferences: { session: browse, preload: PAGE_PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false, safeDialogs: true },
-    });
+  // adopt - опции окна, которое открыл сайт (window.open): вкладка берёт уже созданную Chromium
+  // страницу, поэтому у неё есть window.opener (окна входа «через Google/GitHub» работают),
+  // а адрес она загружает сама.
+  function createView(id, url, adopt) {
+    const view = new WebContentsView(adopt
+      ? { webContents: adopt.webContents, webPreferences: { ...adopt.webPreferences, sandbox: true, contextIsolation: true, nodeIntegration: false } }
+      : { webPreferences: { session: browse, preload: PAGE_PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: false, safeDialogs: true } });
     view.setBackgroundColor(BASE[theme()] || '#ffffff');
     const tab = { id, view, state: { url, title: '', favicon: null, loading: true, audible: false, zoom: 0, crashed: false } };
     tabs.set(id, tab);
     byWc.set(view.webContents.id, tab);
     wire(tab);
-    view.webContents.loadURL(url).catch(() => {});
+    if (!adopt) view.webContents.loadURL(url).catch(() => {});
     return tab;
   }
 
-  function openTab(url, opts = {}) {
+  function openTab(url, opts = {}, adopt) {
     const id = model.open(url, opts);
-    const tab = createView(id, url);
+    const tab = createView(id, url, adopt);
     if (opts.activate !== false) activate(id);
     else push();
     return tab;
@@ -182,8 +185,11 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
     const wc = tab.view.webContents;
     const st = tab.state;
     wc.setWindowOpenHandler(({ url, disposition }) => {
-      if (/^(https?|file):/i.test(url) || url === 'about:blank') openTab(url, { after: tab.id, activate: disposition !== 'background-tab' });
-      return { action: 'deny' };
+      if (!/^https?:/i.test(url) && url !== 'about:blank') return { action: 'deny' };
+      return {
+        action: 'allow',
+        createWindow: (options) => openTab(url, { after: tab.id, activate: disposition !== 'background-tab' }, options).view.webContents,
+      };
     });
     wc.on('will-navigate', (e) => {
       // Сайт не может сам перейти на страницу браузера ib:// - только пользователь.
