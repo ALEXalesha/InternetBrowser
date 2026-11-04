@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru" data-theme="glass">
+<head>
+  <meta charset="utf-8">
+  <title>Настройки</title>
+  <link rel="stylesheet" href="ib://ui/themes.css">
+  <link rel="stylesheet" href="page.css">
+</head>
+<body data-title="settingsTitle">
+  <div class="wrap">
+    <h1 data-t="settingsTitle"></h1>
+
+    <section class="glass card" id="appearance">
+      <h2 data-t="setAppearance"></h2>
+      <div class="setrow"><span data-t="setTheme"></span><div class="seg" id="theme"></div></div>
+      <div class="setrow"><span data-t="setLang"></span><div class="seg" id="lang"></div></div>
+      <label class="setrow"><span data-t="setBookmarksBar"></span><input type="checkbox" class="switch" id="bookmarksBar"></label>
+    </section>
+
+    <section class="glass card" id="search">
+      <h2 data-t="setSearch"></h2>
+      <div class="setrow"><span data-t="setEngine"></span><select class="t" id="engine"></select></div>
+      <p class="note" data-t="setEngineNote"></p>
+    </section>
+
+    <section class="glass card" id="blocking">
+      <h2 data-t="setBlocking"></h2>
+      <label class="setrow"><span data-t="setBlockingOn"></span><input type="checkbox" class="switch" id="blockingOn"></label>
+      <label class="setrow"><span data-t="setCosmetic"></span><input type="checkbox" class="switch" id="cosmetic"></label>
+      <h2 style="margin-top:14px" data-t="setLists"></h2>
+      <label class="setrow"><span data-t="setListsAuto"></span><input type="checkbox" class="switch" id="listsAuto"></label>
+      <div class="setrow"><span class="dim small" id="lists-state"></span><button class="btn" id="lists-now" data-t="setListsNow"></button></div>
+      <h2 style="margin-top:14px" data-t="setSitesOff"></h2>
+      <div id="sites"></div>
+    </section>
+
+    <section class="glass card" id="import">
+      <h2 data-t="setImport"></h2>
+      <p class="note" data-t="setImportNote"></p>
+      <div class="setrow"><span data-t="setImportProfile"></span><select class="t" id="profile"></select><button class="btn primary" id="import-btn" data-t="setImportButton"></button></div>
+      <p class="small" id="import-result"></p>
+    </section>
+
+    <section class="glass card" id="startup">
+      <h2 data-t="setStartup"></h2>
+      <label class="setrow"><span data-t="setRestore"></span><input type="checkbox" class="switch" id="restoreTabs"></label>
+    </section>
+
+    <section class="glass card" id="privacy">
+      <h2 data-t="setPrivacy"></h2>
+      <p class="note" data-t="setPrivacyNote"></p>
+      <button class="btn danger" id="clear-history" data-t="setClearHistory"></button>
+    </section>
+
+    <section class="glass card" id="about">
+      <h2 data-t="setAbout"></h2>
+      <p id="about-text"></p>
+      <p class="dim small" data-t="aboutCredits"></p>
+    </section>
+  </div>
+  <script src="ib://ui/icons.js"></script>
+  <script src="page.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

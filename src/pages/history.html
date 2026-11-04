@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru" data-theme="glass">
+<head>
+  <meta charset="utf-8">
+  <title>История</title>
+  <link rel="stylesheet" href="ib://ui/themes.css">
+  <link rel="stylesheet" href="page.css">
+</head>
+<body data-title="historyTitle">
+  <div class="wrap">
+    <h1 data-t="historyTitle"></h1>
+    <div class="toolbar">
+      <label class="field"><span data-icon="search"></span><input id="q" type="search" data-ph="historySearch" spellcheck="false"></label>
+      <button class="btn danger" id="clear" data-t="historyClear"></button>
+    </div>
+    <div class="glass list" id="list"></div>
+    <div class="toolbar" style="justify-content:center;margin-top:12px"><button class="btn" id="more" hidden>…</button></div>
+  </div>
+  <script src="ib://ui/icons.js"></script>
+  <script src="page.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

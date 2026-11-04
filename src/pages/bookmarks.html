@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru" data-theme="glass">
+<head>
+  <meta charset="utf-8">
+  <title>Закладки</title>
+  <link rel="stylesheet" href="ib://ui/themes.css">
+  <link rel="stylesheet" href="page.css">
+  <style>
+    .folder > .li { font-weight: 600; }
+    .kids { padding-left: 26px; }
+    .li .actions { display: flex; gap: 2px; opacity: 0.0; transition: opacity 0.1s; }
+    .li:hover .actions, .li:focus-within .actions { opacity: 1; }
+    .li input.t { flex: 1; }
+    .twist { width: 20px; height: 20px; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-dim); flex: none; padding: 0; }
+    .twist .ic { width: 14px; height: 14px; }
+  </style>
+</head>
+<body data-title="bookmarksTitle">
+  <div class="wrap">
+    <h1 data-t="bookmarksTitle"></h1>
+    <div class="toolbar">
+      <label class="field"><span data-icon="search"></span><input id="q" type="search" data-ph="bookmarksSearch" spellcheck="false"></label>
+      <button class="btn" id="add-folder" data-t="folderNew"></button>
+    </div>
+    <div class="glass list" id="tree"></div>
+  </div>
+  <script src="ib://ui/icons.js"></script>
+  <script src="page.js"></script>
+  <script src="bookmarks.js"></script>
+</body>
+</html>

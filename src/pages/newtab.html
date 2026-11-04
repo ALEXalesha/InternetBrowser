@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru" data-theme="glass">
+<head>
+  <meta charset="utf-8">
+  <title>Новая вкладка</title>
+  <link rel="stylesheet" href="ib://ui/themes.css">
+  <link rel="stylesheet" href="page.css">
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body data-title="newTab">
+  <main class="hero">
+    <div id="error" class="glass card err" hidden>
+      <h2 data-t="errorTitle"></h2>
+      <p id="error-text" class="dim"></p>
+      <button id="retry" class="btn primary" data-t="errorRetry"></button>
+    </div>
+    <div class="clock" id="clock"></div>
+    <div class="date dim" id="date"></div>
+    <form id="search" class="field big glass" autocomplete="off">
+      <span data-icon="search"></span>
+      <input id="q" type="text" spellcheck="false" aria-label="search">
+    </form>
+    <section class="links" id="links" aria-label="links"></section>
+    <div class="foot">
+      <span class="pill" id="blocked"></span>
+      <button class="btn" id="edit" data-t="newtabEditLinks"></button>
+    </div>
+    <form id="editor" class="glass card editor" hidden>
+      <div id="edit-rows"></div>
+      <div class="edit-new">
+        <input class="t" id="new-title" data-ph="linkTitle">
+        <input class="t" id="new-url" data-ph="linkUrl" placeholder="https://">
+        <button class="btn" id="add" type="button" data-t="linkAdd"></button>
+      </div>
+      <div class="edit-done"><button class="btn primary" type="submit" data-t="done"></button></div>
+    </form>
+  </main>
+  <script src="ib://ui/icons.js"></script>
+  <script src="page.js"></script>
+  <script src="newtab.js"></script>
+</body>
+</html>
