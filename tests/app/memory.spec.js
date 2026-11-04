@@ -46,12 +46,18 @@ test('закон: 20 открытых и закрытых вкладок не о
     await tabPage(app, /site\.test\/page\.html/);
     const count = () => app.evaluate(({ webContents, app: a }) => ({ wc: webContents.getAllWebContents().length, procs: a.getAppMetrics().length }));
     const before = await count();
-    for (let i = 0; i < 20; i++) {
-      await app.evaluate((_e, n) => globalThis.ibTest.browser.openTab(`http://other.test/?n=${n}`, { activate: true }), i);
-    }
-    await expect.poll(async () => (await tabs(app)).length).toBe(21);
-    for (const t of (await tabs(app)).slice(1)) await app.evaluate((_e, id) => globalThis.ibTest.browser.closeTab(id), t.id);
-    await expect.poll(async () => (await tabs(app)).length).toBe(1);
+    // Открытие и закрытие идут внутри главного процесса: Playwright подключается к каждой новой
+    // вкладке, и 20 вкладок, рождённых и закрытых за доли секунды, изредка запирали само его
+    // подключение (браузер при этом отвечал - проверено 800 открытиями без Playwright).
+    const left = await app.evaluate(async () => {
+      const b = globalThis.ibTest.browser;
+      for (let n = 0; n < 20; n++) b.openTab(`http://other.test/?n=${n}`, { activate: true });
+      const opened = b.tabs().length;
+      await new Promise((r) => setTimeout(r, 300));
+      for (const t of b.tabs().slice(1)) b.closeTab(t.id);
+      return { opened, left: b.tabs().length };
+    });
+    expect(left).toEqual({ opened: 21, left: 1 });
     await expect.poll(async () => (await count()).wc, { timeout: 15000 }).toBe(before.wc);
     await expect.poll(async () => (await count()).procs, { timeout: 15000 }).toBeLessThanOrEqual(before.procs + 1);
     await command(app, 'reopenTab');
