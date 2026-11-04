@@ -55,8 +55,11 @@ async function go(ui, text) {
   await ui.press('#address', 'Enter');
 }
 
+/** Нажать элемент в виде вкладки или всплывающем слое: сам элемент, без ожидания кадра. */
+const tap = (locator) => locator.evaluate((el) => el.click());
+
 const state = (app) => app.evaluate(() => globalThis.ibTest.browser.state());
 const tabs = (app) => app.evaluate(() => globalThis.ibTest.browser.tabs());
 const command = (app, name, arg) => app.evaluate((_e, a) => globalThis.ibTest.browser.command(a[0], a[1]), [name, arg]);
 
-module.exports = { ROOT, tmp, launch, waitLists, tabPage, go, state, tabs, command };
+module.exports = { ROOT, tmp, launch, waitLists, tabPage, go, tap, state, tabs, command };

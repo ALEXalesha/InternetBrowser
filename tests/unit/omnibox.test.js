@@ -53,7 +53,7 @@ test('закон: поиск раскодируется обратно ровн�
 
 test('закон: текст с пробелом внутри и без схемы - всегда поиск', () => {
   forAll('omnibox-space', (r) => {
-    const a = r.bool() ? genHost(r) : r.str(LETTERS + '.:/', 1, 15);
+    const a = r.bool() ? genHost(r) + (r.bool() ? '/' + r.str(LETTERS, 1, 8) : '') : r.str(LETTERS + '.:/', 1, 15);
     return `${a}${r.pick([' ', '  ', '\t'])}${r.str(LETTERS + '.', 1, 10)}`;
   }, (text) => {
     assert.equal(parseInput(text).kind, 'search');
@@ -97,7 +97,8 @@ test('закон: IPv4 и localhost - адрес по http, неверный IPv
 });
 
 test('закон: разбор идемпотентен - открытый адрес, набранный снова, открывается тот же', () => {
-  forAll('omnibox-idempotent', (r) => (r.bool() ? genHost(r) + genPath(r) : r.str(ANY, 1, 30)), (text) => {
+  const SPECIAL = ['ib://history', 'ib://settings/#about', 'IB://NewTab', 'about:blank', 'file:///C:/a b.html', 'C:\\x\\y.pdf', 'localhost:8080/x', '[::1]/a', '127.0.0.1:3000'];
+  forAll('omnibox-idempotent', (r) => r.pick([genHost(r) + genPath(r), r.str(ANY, 1, 30), r.pick(SPECIAL), `https://${genHost(r)}${genPath(r)}`]), (text) => {
     const res = parseInput(text);
     if (res.kind !== 'url') return;
     const again = parseInput(res.url);

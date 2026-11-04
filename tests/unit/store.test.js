@@ -241,6 +241,10 @@ test('закон: настройки - любой мусор даёт допус
   }, (raw) => {
     const n = normalizeSettings(raw);
     assert.deepEqual(normalizeSettings(n), n);
+    for (const k of ['blocking', 'cosmetic', 'listsAutoUpdate', 'bookmarksBar', 'restoreTabs']) assert.equal(typeof n[k], 'boolean', k);
+    assert.ok(['auto', 'ru', 'en'].includes(n.lang));
+    assert.ok(THEMES.some((t) => t.id === n.theme));
+    assert.equal(typeof n.engine, 'string');
     assert.deepEqual(Object.keys(n).sort(), Object.keys(DEFAULTS).sort());
     assert.ok(n.links.length <= MAX_LINKS);
     for (const l of n.links) assert.ok(/^https?:/.test(l.url) && l.title);

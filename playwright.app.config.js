@@ -10,6 +10,9 @@ module.exports = defineConfig({
   fullyParallel: false,
   timeout: 120000,
   retries: 0,
+  // Клик Playwright ждёт кадр анимации; в невидимом окне вид вкладки иногда кадров не даёт.
+  // Действие без срока висело бы до конца закона - пусть падает быстро и с причиной.
+  use: { actionTimeout: 15000 },
   reporter: [['list']],
   outputDir: path.join(os.tmpdir(), 'internet-browser-playwright'),
 });

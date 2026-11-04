@@ -73,7 +73,8 @@ function listSources() {
 function rebuildEngine() {
   const dir = path.join(app.getPath('userData'), 'filters');
   const { texts, from, updated } = loadLists({ dir, bundled: path.join(process.resourcesPath || ROOT, 'filters'), minRules: TEST ? 1 : 100 });
-  const local = fs.existsSync(path.join(ROOT, 'filters')) ? loadLists({ bundled: path.join(ROOT, 'filters') }) : null;
+  // При запуске из исходников (npm start) - списки, скачанные npm run lists; в законах их нет.
+  const local = !TEST && fs.existsSync(path.join(ROOT, 'filters')) ? loadLists({ bundled: path.join(ROOT, 'filters') }) : null;
   const useLocal = from === 'fallback' && local && local.texts.length;
   blocker.setEngine(buildEngine(useLocal ? local.texts : texts));
   listsState = { ...listsState, from: useLocal ? 'bundled' : from, updated };

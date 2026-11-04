@@ -130,7 +130,7 @@ test('закон: страница ошибки, HTML и обрывки не с�
     const n = kind === 'short' ? r.int(0, 99) : r.int(100, 300);
     const body = Array.from({ length: n }, rule).join('\n');
     if (kind === 'ok') return { kind, text: `[Adblock Plus 2.0]\n! Title: EasyList\n${body}` };
-    if (kind === 'html') return { kind, text: `<!DOCTYPE html><html>[Adblock Plus 2.0]\n${body}` };
+    if (kind === 'html') return { kind, text: `<!DOCTYPE html><html><pre>\n[Adblock Plus 2.0]\n! Title: EasyList\n${body}` };
     if (kind === 'short') return { kind, text: `[Adblock Plus 2.0]\n${body}` };
     if (kind === 'nohead') return { kind, text: body };
     return { kind, text: r.pick([null, 42, '', '!\n!\n']) };

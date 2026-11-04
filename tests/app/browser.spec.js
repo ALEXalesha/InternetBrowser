@@ -5,7 +5,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const { start } = require('./server');
-const { launch, waitLists, tabPage, go, state, tabs, command, tmp } = require('./helpers');
+const { launch, waitLists, tabPage, go, tap, state, tabs, command, tmp } = require('./helpers');
 const { writeUserData } = require('../fixtures/fake-chrome');
 
 let server;
@@ -54,7 +54,7 @@ test('блокировка: реклама и трекер срезаны, сч�
     await ui.click('#shield');
     const ov = await tabPage(app, /^ib:\/\/ui\/overlay\.html/);
     await expect(ov.locator('#count')).toHaveText('3');
-    await ov.click('#site-on');
+    await tap(ov.locator('#site-on'));
     await expect.poll(async () => (await state(app)).nav.siteOn).toBe(false);
     await expect.poll(() => page.evaluate(() => window.adsLoaded === true).catch(() => null)).toBe(true);
     await expect.poll(async () => (await state(app)).nav.blocked).toBe(0);
@@ -79,7 +79,7 @@ test('блокировка: реклама и трекер срезаны, сч�
     await command(app, 'settings');
     const set = await tabPage(app, /^ib:\/\/settings\//);
     await expect(set.locator('[data-site="site.test"]')).toBeVisible();
-    await set.click('[data-site="site.test"]');
+    await tap(set.locator('[data-site="site.test"]'));
     await expect(set.locator('[data-site]')).toHaveCount(0);
     expect(await app.evaluate(() => globalThis.ibTest.store.isBlockingOn('site.test'))).toBe(true);
   } finally {
@@ -149,7 +149,7 @@ test('вкладки: Ctrl+T, ссылка target=_blank, закрыть и ве
   try {
     await go(ui, 'site.test/page.html');
     const page = await tabPage(app, /site\.test\/page\.html/);
-    await page.click('#pop');
+    await tap(page.locator('#pop'));
     await expect.poll(async () => (await tabs(app)).length).toBe(2);
     await tabPage(app, /other\.test/);
     expect((await state(app)).tabs.map((t) => t.title)).toEqual(['Test site', 'Other site']);
@@ -184,9 +184,9 @@ test('загрузки: файл ложится в папку «Загрузки
   try {
     await go(ui, 'site.test/page.html');
     const page = await tabPage(app, /site\.test\/page\.html/);
-    await page.click('#dl');
+    await tap(page.locator('#dl'));
     await expect.poll(() => fs.existsSync(path.join(downloads, 'report.bin')) && fs.statSync(path.join(downloads, 'report.bin')).size).toBe(server.FILE.length);
-    await page.click('#dl');
+    await tap(page.locator('#dl'));
     await expect.poll(() => fs.existsSync(path.join(downloads, 'report (1).bin')) && fs.statSync(path.join(downloads, 'report (1).bin')).size).toBe(server.FILE.length);
     expect(fs.readFileSync(path.join(downloads, 'report.bin')).equals(server.FILE)).toBe(true);
     await command(app, 'downloads');
@@ -198,7 +198,7 @@ test('загрузки: файл ложится в папку «Загрузки
     fs.rmSync(path.join(downloads, 'report.bin'));
     await d.reload();
     await expect(d.locator('[data-state="missing"]')).toHaveCount(1);
-    await d.locator('[data-state="missing"] [data-act="remove"]').click();
+    await tap(d.locator('[data-state="missing"] [data-act="remove"]'));
     await expect(d.locator('[data-dl]')).toHaveCount(1);
   } finally {
     await app.close();
@@ -222,15 +222,15 @@ test('импорт из Chrome кнопкой: закладки в папке «
     await command(app, 'settings');
     const s = await tabPage(app, /^ib:\/\/settings\//);
     await expect(s.locator('#profile option')).toHaveText(['Алексей']);
-    await s.click('#import-btn');
+    await tap(s.locator('#import-btn'));
     await expect(s.locator('#import-result')).toHaveText('Перенесено закладок: 3, записей истории: 1');
-    await s.click('#import-btn');
+    await tap(s.locator('#import-btn'));
     await expect(s.locator('#import-result')).toHaveText('Перенесено закладок: 0, записей истории: 1');
     await expect(ui.locator('#bar .bm')).toHaveText(['Из Chrome']);
     await ui.click('#bar .bm');
     const ov = await tabPage(app, /^ib:\/\/ui\/overlay\.html/);
     await expect(ov.locator('.panel .row')).toHaveText(['Хаб', 'Работа', 'Другие закладки']);
-    await ov.locator('.backdrop').click({ position: { x: 5, y: 600 } });
+    await ov.locator('.backdrop').dispatchEvent('mousedown');
     await command(app, 'history');
     const h = await tabPage(app, /^ib:\/\/history\//);
     await h.fill('#q', 'новости');

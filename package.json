@@ -18,7 +18,7 @@
     "lists": "node tools/fetch-lists.js",
     "screens": "node tools/screenshots.js",
     "icon": "node tools/make-icon.js",
-    "dist": "electron-builder --win nsis portable --x64"
+    "dist": "node tools/fetch-lists.js && electron-builder --win nsis portable --x64"
   },
   "dependencies": {
     "@ghostery/adblocker": "2.20.3"
@@ -26,6 +26,68 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "c8": "12.0.0",
-    "electron": "44.10.2"
+    "electron": "44.10.2",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.alexalesha.internetbrowser",
+    "productName": "InternetBrowser",
+    "copyright": "Copyright (c) 2026 ALEXalesha",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "package.json",
+      "src/**/*",
+      "LICENSE",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "filters",
+        "to": "filters",
+        "filter": [
+          "*.txt"
+        ]
+      }
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "electronLanguages": [
+      "en-US",
+      "ru"
+    ],
+    "compression": "maximum",
+    "publish": null,
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "InternetBrowser",
+      "artifactName": "InternetBrowser-${version}-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "InternetBrowser-${version}-Portable.${ext}"
+    }
   }
 }
