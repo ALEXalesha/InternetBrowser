@@ -245,9 +245,13 @@ test('импорт из Chrome кнопкой: закладки в папке «
 });
 
 test('закон: без действий пользователя наружу не уходит ничего - ни со своих страниц, ни из интерфейса, ни за значками', async () => {
+  const startLeaks = server.leaks.length;
   const { app, ui } = await launch(server);
   try {
     await waitLists(app);
+    await ui.waitForTimeout(2000);
+    // запуск: фоновые службы Chromium, проверка орфографии, списки - ничего мимо тестовых адресов
+    expect(server.leaks.slice(startLeaks)).toEqual([]);
     server.leaks.length = 0;
     for (const name of ['settings', 'history', 'bookmarks', 'downloads']) {
       await command(app, name);
@@ -318,6 +322,29 @@ test('закон: сайт не попадает на страницы брау�
     const fileTitle = async () => ((await state(app)).tabs.find((t) => t.url.startsWith('file:')) || {}).title;
     await expect.poll(fileTitle, { timeout: 10000 }).toMatch(/^(BLOCKED|READ:)/);
     expect(await fileTitle()).toBe('BLOCKED');
+  } finally {
+    await app.close();
+  }
+});
+
+test('закон: переименование закладки в окне звезды не двигает её с места', async () => {
+  const { app, ui } = await launch(server);
+  try {
+    await app.evaluate(() => {
+      const s = globalThis.ibTest.store;
+      s.addBookmark({ title: 'Second page', url: 'http://site.test/two.html' });
+      s.addBookmark({ title: 'Zeta', url: 'http://site.test/z.html' });
+      globalThis.ibTest.browser.bookmarksChanged();
+    });
+    await expect(ui.locator('#bar .bm')).toHaveText(['Second page', 'Zeta']);
+    await go(ui, 'site.test/two.html');
+    await tabPage(app, /site\.test\/two\.html/);
+    await command(app, 'bookmark');
+    const ov = await tabPage(app, /^ib:\/\/ui\/overlay\.html/);
+    await expect(ov.locator('#bm-title')).toHaveValue('Second page');
+    await ov.locator('#bm-title').fill('Вторая');
+    await tap(ov.locator('#bm-done'));
+    await expect(ui.locator('#bar .bm')).toHaveText(['Вторая', 'Zeta']);
   } finally {
     await app.close();
   }

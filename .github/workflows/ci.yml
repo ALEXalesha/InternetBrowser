@@ -12,7 +12,7 @@ jobs:
   laws:
     name: Laws
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -28,7 +28,11 @@ jobs:
         run: npm run cover:core
       - name: All windowless code, branch coverage >= 80 %
         run: npm run cover
-      - name: Mutants are in place
-        run: node tools/mutate.js --check
+      - name: Core mutants - every one must be caught
+        run: |
+          node tools/mutate.js --check
+          IB_MUT_UNIT=1 node tools/mutate.js
       - name: Window laws (Playwright + Electron, xvfb)
         run: xvfb-run -a npm run test:app
+      - name: Window mutants - every one must be caught
+        run: IB_MUT='^app-' xvfb-run -a node tools/mutate.js

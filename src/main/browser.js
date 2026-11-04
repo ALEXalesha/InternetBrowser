@@ -628,7 +628,7 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
       push();
       return store.isBlockingOn(site);
     },
-    bookmarkSave: (b) => { if (b && store.updateBookmark(Number(b.id), { title: String(b.title || '') })) { if (b.parent) store.moveBookmark(Number(b.id), Number(b.parent)); } bookmarksChanged(); hideOverlay(); return true; },
+    bookmarkSave: (b) => { if (b && store.updateBookmark(Number(b.id), { title: String(b.title || '') })) { const cur = store.bookmark(Number(b.id)); if (b.parent && cur && Number(b.parent) !== cur.parent) store.moveBookmark(Number(b.id), Number(b.parent)); } bookmarksChanged(); hideOverlay(); return true; },
     bookmarkRemove: (id) => { store.removeBookmark(Number(id)); bookmarksChanged(); hideOverlay(); return true; },
     perm: (allow) => { const p = permCurrent; permCurrent = null; if (p) p.resolve(allow === true); hideOverlay(); nextPerm(); return true; },
     menu: (cmd, arg) => { hideOverlay(); return command(String(cmd), arg); },
