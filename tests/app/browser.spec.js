@@ -349,3 +349,29 @@ test('закон: переименование закладки в окне зв
     await app.close();
   }
 });
+
+test('закон: окно, открытое сайтом (window.open), - новая вкладка со связью с открывшим (окна входа работают)', async () => {
+  const { app, ui } = await launch(server);
+  try {
+    await go(ui, 'site.test/page.html');
+    const page = await tabPage(app, /site\.test\/page\.html/);
+    const got = await page.evaluate(() => {
+      const w = window.open('about:blank', '_blank', 'width=500,height=600');
+      if (!w) return null;
+      w.document.title = 'Окно входа';
+      return { hasWindow: true, opener: w.opener === window };
+    });
+    expect(got).toEqual({ hasWindow: true, opener: true });
+    await expect.poll(async () => (await state(app)).tabs.map((t) => t.title)).toEqual(['Test site', 'Окно входа']);
+    // страница, открытая так, не получает мост своих страниц браузера
+    const child = await page.evaluate(() => {
+      const w = window.open('http://other.test/');
+      return new Promise((resolve) => setTimeout(() => { try { resolve(typeof w.ib); } catch { resolve('cross-origin'); } }, 1500));
+    });
+    expect(child).toBe('cross-origin');
+    await expect.poll(async () => (await tabs(app)).length).toBe(3);
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+  } finally {
+    await app.close();
+  }
+});
