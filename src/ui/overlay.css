@@ -76,7 +76,7 @@ input.t:focus, select.t:focus { border-color: var(--accent); }
 .buttons { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 10px 4px; }
 .btn { height: 32px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--hover); }
 .btn:hover { background: var(--active); }
-.btn.primary { background: var(--accent-grad); color: var(--on-accent); border-color: transparent; }
+.btn.primary { background: var(--fill-grad); color: var(--on-accent); border-color: transparent; }
 .btn.danger { color: var(--danger); }
 
 .bar-progress { height: 4px; border-radius: 2px; background: var(--hover); overflow: hidden; margin-top: 4px; }

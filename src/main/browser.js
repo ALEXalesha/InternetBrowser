@@ -167,7 +167,9 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
       if (pageName(tabs.get(m.id).state.url) === name) { activate(m.id); return; }
     }
     const cur = activeTab();
-    if (cur && pageName(cur.state.url) === 'newtab') cur.view.webContents.loadURL(url);
+    // Адрес ставится сразу: вторая команда подряд (Настройки, затем История) не должна
+    // занять ту же новую вкладку, пока первая ещё грузится.
+    if (cur && pageName(cur.state.url) === 'newtab') { cur.state.url = url; model.update(cur.id, { url }); cur.view.webContents.loadURL(url).catch(() => {}); push(); }
     else openTab(url, { after: model.active() });
   }
 

@@ -4,7 +4,11 @@
   Тема - атрибут data-theme на <html>. Сверх токенов Paint свои (в конце файла):
     --ink        цвет слоёв стекла, R G B (в светлой теме тёмный: стекло «переворачивается»);
     --panel-bg   фон всплывающих панелей: над страницей сайта размыть нечего, поэтому плотнее;
-    --field-bg   поле ввода; --hover, --active - подсветка кнопок; --on-accent - текст на акценте.
+    --field-bg   поле ввода; --hover, --active - подсветка кнопок; --on-accent - текст на акценте;
+    --fill-grad  заливка кнопок с белым текстом: акцент темнее, чтобы контраст был не ниже 4.5:1
+                 (закон tests/app/look.spec.js); --danger в тёмных темах светлее по той же причине.
+  Приглушённый текст --text-dim в «Строгой», «Светлой», «Ночной» и «Тёплой» плотнее, чем в Paint:
+  в браузере он мелкий (время, адреса, подсказки), и закон контраста требовал 4.5:1.
 */
 :root,
 :root[data-theme="glass"] {
@@ -19,7 +23,7 @@
   --blur: blur(28px) saturate(190%);
   --blur-strong: blur(40px) saturate(220%);
   --text: #f4f4f8;
-  --text-dim: rgba(244, 244, 248, 0.62);
+  --text-dim: rgba(244, 244, 248, 0.64);
   --accent: #5b8def;
   --accent-2: #9d5bef;
   --accent-grad: linear-gradient(135deg, #5b8def 0%, #9d5bef 100%);
@@ -53,7 +57,7 @@
   --blur: blur(20px) saturate(120%);
   --blur-strong: blur(28px) saturate(130%);
   --text: #e6e8ec;
-  --text-dim: rgba(230, 232, 236, 0.55);
+  --text-dim: rgba(230, 232, 236, 0.64);
   --accent: #4a7ab8;
   --accent-2: #5c7fa6;
   --accent-grad: linear-gradient(135deg, #4a7ab8 0%, #5c7fa6 100%);
@@ -80,7 +84,7 @@
   --blur: blur(18px) saturate(130%);
   --blur-strong: blur(26px) saturate(140%);
   --text: #1b2030;
-  --text-dim: rgba(27, 32, 48, 0.58);
+  --text-dim: rgba(27, 32, 48, 0.70);
   --accent: #3a6fd8;
   --accent-2: #7a52d0;
   --accent-grad: linear-gradient(135deg, #3a6fd8 0%, #7a52d0 100%);
@@ -107,7 +111,7 @@
   --blur: blur(18px) saturate(110%);
   --blur-strong: blur(26px) saturate(120%);
   --text: #dcdde3;
-  --text-dim: rgba(220, 221, 227, 0.48);
+  --text-dim: rgba(220, 221, 227, 0.58);
   --accent: #4668a8;
   --accent-2: #6a5aa0;
   --accent-grad: linear-gradient(135deg, #4668a8 0%, #6a5aa0 100%);
@@ -134,7 +138,7 @@
   --blur: blur(22px) saturate(150%);
   --blur-strong: blur(32px) saturate(170%);
   --text: #f5ead9;
-  --text-dim: rgba(245, 234, 217, 0.58);
+  --text-dim: rgba(245, 234, 217, 0.62);
   --accent: #d08a3c;
   --accent-2: #b4562f;
   --accent-grad: linear-gradient(135deg, #d08a3c 0%, #b4562f 100%);
@@ -158,6 +162,8 @@
   --on-accent: #ffffff;
   --scrim: rgba(5, 4, 12, 0.0);
   --tab-active: rgba(255, 255, 255, 0.16);
+  --fill-grad: linear-gradient(135deg, #4972c1 0%, #9053db 100%);
+  --danger: #ff8585;
 }
 :root[data-theme="formal"] {
   --panel-bg: rgba(34, 39, 49, 0.97);
@@ -165,6 +171,8 @@
   --hover: rgba(255, 255, 255, 0.07);
   --active: rgba(255, 255, 255, 0.13);
   --tab-active: rgba(255, 255, 255, 0.11);
+  --fill-grad: linear-gradient(135deg, #4776b2 0%, #56779c 100%);
+  --danger: #ff8585;
 }
 :root[data-theme="light"] {
   --panel-bg: rgba(250, 251, 254, 0.97);
@@ -174,6 +182,7 @@
   --tab-active: rgba(255, 255, 255, 0.92);
   --danger: #b01e34;
   --success: #0f7a5f;
+  --fill-grad: var(--accent-grad);
 }
 :root[data-theme="night"] {
   --panel-bg: rgba(16, 17, 23, 0.97);
@@ -181,6 +190,8 @@
   --hover: rgba(255, 255, 255, 0.06);
   --active: rgba(255, 255, 255, 0.11);
   --tab-active: rgba(255, 255, 255, 0.09);
+  --fill-grad: var(--accent-grad);
+  --danger: #ff8585;
 }
 :root[data-theme="warm"] {
   --panel-bg: rgba(42, 31, 21, 0.96);
@@ -188,4 +199,6 @@
   --hover: rgba(255, 236, 210, 0.09);
   --active: rgba(255, 236, 210, 0.16);
   --tab-active: rgba(255, 236, 210, 0.15);
+  --fill-grad: linear-gradient(135deg, #9e682d 0%, #b4562f 100%);
+  --danger: #ff8585;
 }

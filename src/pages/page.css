@@ -30,7 +30,7 @@ h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
 .field .ic { color: var(--text-dim); }
 .btn { height: 36px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--glass-bg-strong); cursor: default; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 .btn:hover { border-color: var(--glass-border-strong); }
-.btn.primary { background: var(--accent-grad); color: #fff; border-color: transparent; }
+.btn.primary { background: var(--fill-grad); color: #fff; border-color: transparent; }
 .btn.danger { color: var(--danger); }
 .btn:disabled { opacity: 0.45; }
 .icon-btn { width: 32px; height: 32px; border-radius: 10px; border: 0; background: transparent; display: grid; place-items: center; flex: none; color: var(--text-dim); }
@@ -60,7 +60,7 @@ select.t option { background: var(--app-base); color: var(--text); }
 .switch:checked::after { transform: translateX(18px); background: #fff; }
 .seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--glass-bg-soft); border: 1px solid var(--glass-border); flex-wrap: wrap; }
 .seg button { border: 0; background: transparent; height: 30px; padding: 0 12px; border-radius: 9px; }
-.seg button.on { background: var(--accent-grad); color: #fff; }
+.seg button.on { background: var(--fill-grad); color: #fff; }
 .progress { height: 6px; border-radius: 3px; background: var(--glass-bg-strong); overflow: hidden; margin-top: 6px; }
 .progress i { display: block; height: 100%; background: var(--accent-grad); }
 .ok { color: var(--success); }
