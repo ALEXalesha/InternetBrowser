@@ -150,7 +150,11 @@ function run(m, dir) {
   let r;
   if (m.unit) {
     const files = fs.readdirSync(path.join(dir, 'tests', 'unit')).filter((f) => f.endsWith('.test.js')).map((f) => `tests/unit/${f}`);
-    r = spawnSync(process.execPath, ['--test', '--test-concurrency=1', '--test-name-pattern', m.unit, ...files], { cwd: dir, env, encoding: 'utf8', timeout: 600000 });
+    // отчёт TAP явно: в Node 24 без терминала по умолчанию другой формат (без «# pass N»);
+    // срок 2 минуты - мутант, от которого закон зависает, тоже убит
+    r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', '--test-concurrency=1', '--test-name-pattern', m.unit, ...files], { cwd: dir, env, encoding: 'utf8', timeout: 120000 });
+    // закон завис и снят по сроку - поломка поймана
+    if (r.status === null || r.signal || (r.error && r.error.code === 'ETIMEDOUT')) return { status: 1, note: 'закон завис' };
     // законы, подходящие под имя, должны найтись: иначе мутант «выжил» бы незамеченным
     const pass = Number((/# pass (\d+)/.exec(r.stdout || '') || [])[1] || 0);
     const fail = Number((/# fail (\d+)/.exec(r.stdout || '') || [])[1] || 0);
