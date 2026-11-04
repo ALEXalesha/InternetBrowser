@@ -231,11 +231,11 @@
   window.ibui.on('ui:found', (r) => { $('find-count').textContent = r.total ? t('findCount', { i: r.active, n: r.total }) : t('findNone'); });
   find.addEventListener('input', () => { if (find.value) call('find', find.value); else { call('findStop'); $('find-count').textContent = ''; } });
   find.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); call('find', find.value, { forward: !e.shiftKey, findNext: true }); }
+    if (e.key === 'Enter') { e.preventDefault(); call('find', find.value, { forward: !e.shiftKey, next: true }); }
     if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
   });
-  $('find-prev').addEventListener('click', () => call('find', find.value, { forward: false, findNext: true }));
-  $('find-next').addEventListener('click', () => call('find', find.value, { forward: true, findNext: true }));
+  $('find-prev').addEventListener('click', () => call('find', find.value, { forward: false, next: true }));
+  $('find-next').addEventListener('click', () => call('find', find.value, { forward: true, next: true }));
   $('find-close').addEventListener('click', closeFind);
 
   state = init.state;

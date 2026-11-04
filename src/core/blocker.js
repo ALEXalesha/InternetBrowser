@@ -2,7 +2,10 @@
 // Движок фильтров - @ghostery/adblocker (EasyList, EasyPrivacy). Свои правила поверх него:
 //  - документ вкладки (сама страница) не режется никогда: обычные сайты всегда открываются;
 //  - на выключенном сайте (выключатель «на этом сайте») не режется ничего, и косметики нет;
-//  - режутся только http(s) и ws(s) запросы, у которых известна страница вкладки.
+//  - режутся только http(s) и ws(s) запросы, у которых известна страница вкладки;
+//  - страница вкладки - адрес её последнего документа (запрос mainFrame или committed): первые
+//    подресурсы новой страницы приходят раньше, чем Electron обновит адрес вкладки, и по
+//    старому адресу их судили бы по чужому сайту.
 'use strict';
 
 const { Request } = require('@ghostery/adblocker');
@@ -24,13 +27,18 @@ function createBlocker({ engine, isSiteOn = () => true, enabled = () => true, co
 
   function tab(tabId) {
     let t = tabs.get(tabId);
-    if (!t) { t = { count: 0, recent: [], site: null }; tabs.set(tabId, t); }
+    if (!t) { t = { count: 0, recent: [], top: null }; tabs.set(tabId, t); }
     return t;
   }
 
   /** Начата новая страница во вкладке: счётчик с нуля. */
   function resetTab(tabId, url) {
-    tabs.set(tabId, { count: 0, recent: [], site: siteOf(url) });
+    tabs.set(tabId, { count: 0, recent: [], top: url });
+  }
+
+  /** Вкладка показала документ (в том числе без запроса - из кэша «назад»): он и есть её страница. */
+  function committed(tabId, url) {
+    tab(tabId).top = url;
   }
 
   /**
@@ -43,6 +51,8 @@ function createBlocker({ engine, isSiteOn = () => true, enabled = () => true, co
       return { cancel: false };
     }
     if (!eng || !enabled() || !WEB.test(String(url))) return { cancel: false };
+    const known = tabId != null && tabs.get(tabId);
+    if (known && known.top) topUrl = known.top;
     const site = siteOf(topUrl);
     if (!site || !isSiteOn(site)) return { cancel: false };
     let res;
@@ -90,7 +100,7 @@ function createBlocker({ engine, isSiteOn = () => true, enabled = () => true, co
   }
 
   return {
-    decide, resetTab, stats, forgetTab, cosmeticsFor,
+    decide, resetTab, committed, stats, forgetTab, cosmeticsFor,
     setEngine(e) { eng = e; },
     total: () => total,
   };

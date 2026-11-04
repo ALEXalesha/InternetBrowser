@@ -192,6 +192,7 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
     wc.on('did-start-loading', () => { st.loading = true; push(); });
     wc.on('did-stop-loading', () => { st.loading = false; push(); });
     wc.on('did-navigate', (_e, url) => {
+      blocker.committed(tab.id, url);
       st.url = url;
       st.favicon = siteOf(url) ? store.getFavicon(siteOf(url)) : null;
       st.title = '';
@@ -597,7 +598,8 @@ function createBrowser({ store, blocker, browse, lang, settings, downloads, test
     },
     command: (name, arg) => command(String(name), arg),
     popup: (kind, rect, arg) => popup(String(kind), rect, arg),
-    find: (text, opts) => { const tab = activeTab(); if (tab && text) tab.view.webContents.findInPage(String(text), { forward: !opts || opts.forward !== false, findNext: !!(opts && opts.findNext) }); return true; },
+    // В Electron findNext: true - начать новый поиск; следующее совпадение того же текста - false.
+    find: (text, opts) => { const tab = activeTab(); if (tab && text) tab.view.webContents.findInPage(String(text), { forward: !opts || opts.forward !== false, findNext: !(opts && opts.next) }); return true; },
     findStop: () => { const tab = activeTab(); if (tab) tab.view.webContents.stopFindInPage('clearSelection'); return true; },
     open: (url, how) => {
       const u = String(url || '');

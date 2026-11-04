@@ -26,7 +26,9 @@ function genWorld(r) {
     const host = r.bool(0.7) ? `${r.bool(0.3) ? 'cdn.' : ''}${r.pick(POOL)}` : r.pick(['site1.com', 'cdn.site2.org', 'news.ru', 'safe.net']);
     const scheme = r.pick(['https', 'https', 'http', 'wss', 'data', 'blob']);
     const url = scheme === 'data' ? 'data:image/png;base64,AA' : scheme === 'blob' ? `blob:https://${top}/x` : `${scheme}://${host}/${r.bool(0.3) ? 'ok/' : ''}x.js`;
-    return { url, host, scheme, type: r.bool(0.1) ? 'mainFrame' : r.pick(TYPES), tabId: r.int(1, 3), top, topUrl: r.bool(0.05) ? 'ib://newtab/' : `https://${r.bool(0.2) ? 'www.' : ''}${top}/page` };
+    const type = r.bool(0.1) ? 'mainFrame' : r.pick(TYPES);
+    if (type === 'mainFrame') return { url: `https://${top}/next`, host: top, scheme: 'https', type, tabId: r.int(1, 3), top, topUrl: '' };
+    return { url, host, scheme, type, tabId: r.int(1, 3), top, topUrl: r.bool(0.05) ? 'ib://newtab/' : `https://${r.bool(0.2) ? 'www.' : ''}${top}/page` };
   });
   return { blocked, third, except, lines, off, reqs, enabled: r.bool(0.85) };
 }
@@ -35,12 +37,16 @@ function domainOf(host) {
   return host.split('.').slice(-2).join('.');
 }
 
-function expected(w, q) {
-  if (q.type === 'mainFrame' || !w.enabled || !/^(https?|wss?)$/.test(q.scheme) || q.topUrl.startsWith('ib:')) return false;
-  if (w.off.includes(q.top)) return false;
+// Страница вкладки - её последний документ (mainFrame), а если его не было - topUrl запроса.
+function expected(w, q, lastMain) {
+  if (q.type === 'mainFrame' || !w.enabled || !/^(https?|wss?)$/.test(q.scheme)) return false;
+  const topUrl = lastMain.get(q.tabId) || q.topUrl;
+  if (topUrl.startsWith('ib:')) return false;
+  const top = new URL(topUrl).hostname.replace(/^www\./, '');
+  if (w.off.includes(top)) return false;
   const d = domainOf(q.host);
   if (w.blocked.includes(d)) return !(w.except.includes(d) && q.url.includes('/ok/'));
-  if (w.third.includes(d)) return d !== domainOf(q.top);
+  if (w.third.includes(d)) return d !== domainOf(top);
   return false;
 }
 
@@ -48,14 +54,18 @@ test('закон: режется ровно то, что велит список
   forAll('blocker-model', genWorld, (w) => {
     const b = createBlocker({ engine: buildEngine([w.lines.join('\n')]), isSiteOn: (s) => !w.off.includes(s), enabled: () => w.enabled });
     const counts = new Map();
+    const lastMain = new Map();
+    let total = 0;
     for (const q of w.reqs) {
       const d = b.decide(q);
-      assert.equal(d.cancel, expected(w, q), `${q.url} со страницы ${q.topUrl} (${q.type})`);
-      if (q.type === 'mainFrame') counts.set(q.tabId, 0);
+      const want = expected(w, q, lastMain);
+      assert.equal(d.cancel, want, `${q.url} со страницы ${lastMain.get(q.tabId) || q.topUrl} (${q.type})`);
+      if (q.type === 'mainFrame') { counts.set(q.tabId, 0); lastMain.set(q.tabId, q.url); }
       else if (d.cancel) counts.set(q.tabId, (counts.get(q.tabId) || 0) + 1);
+      if (want) total++;
     }
     for (const id of [1, 2, 3]) assert.equal(b.stats(id).count, counts.get(id) || 0, `вкладка ${id}`);
-    assert.equal(b.total(), w.reqs.filter((q) => expected(w, q)).length);
+    assert.equal(b.total(), total);
   }, 400);
 });
 
@@ -176,4 +186,29 @@ test('списки на диске: своя копия, копия сборки
   assert.equal(b.decide({ url: 'https://doubleclick.net/x', type: 'script', tabId: 1, topUrl: 'https://a.com/' }).cancel, true);
   const rejects = await updateLists({ dir, fetch: async () => { throw 'строка'; }, now: now + 9 * WEEK });
   assert.equal(rejects.results[0].error, 'строка');
+});
+
+test('закон: подресурс новой страницы судится по ней, даже если вкладка ещё показывает старый адрес', () => {
+  forAll('blocker-stale-top', (r) => ({ off: r.bool(), steps: Array.from({ length: r.int(1, 20) }, () => ({ nav: r.bool(0.3), site: r.pick(['on.com', 'off.com']), commit: r.bool(0.5) })) }), ({ steps }) => {
+    const b = createBlocker({ engine: buildEngine(['||ads.com^']), isSiteOn: (s) => s !== 'off.com' });
+    let page = null;
+    let committed = 'https://off.com/';
+    for (const s of steps) {
+      if (s.nav || !page) {
+        page = `https://${s.site}/`;
+        b.decide({ url: page, type: 'mainFrame', tabId: 1 });
+        if (s.commit) { committed = page; b.committed(1, page); }
+        continue;
+      }
+      const d = b.decide({ url: 'https://ads.com/x.js', type: 'script', tabId: 1, topUrl: committed });
+      assert.equal(d.cancel, page === 'https://on.com/');
+    }
+  });
+  const b = createBlocker({ engine: buildEngine(['||ads.com^']) });
+  b.committed(5, 'https://a.com/');
+  assert.equal(b.decide({ url: 'https://ads.com/x', type: 'image', tabId: 5, topUrl: 'ib://newtab/' }).cancel, true);
+  b.committed(5, 'https://a.com/');
+  assert.equal(b.stats(5).count, 1);
+  b.committed(5, 'ib://newtab/');
+  assert.equal(b.decide({ url: 'https://ads.com/x', type: 'image', tabId: 5, topUrl: 'https://a.com/' }).cancel, false);
 });

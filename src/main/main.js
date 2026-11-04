@@ -42,6 +42,9 @@ app.commandLine.appendSwitch('disable-features', 'SpareRendererForSitePerProcess
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('no-pings');
 if (TEST) app.commandLine.appendSwitch('disable-gpu');
+// Законы окна пускают весь трафик через свой прокси: он отдаёт тестовые сайты и записывает
+// любую попытку уйти куда-то ещё («ничего не уходит наружу»).
+if (TEST && process.env.IB_PROXY) app.commandLine.appendSwitch('proxy-server', process.env.IB_PROXY);
 
 if (!TEST && !app.requestSingleInstanceLock()) app.quit();
 
